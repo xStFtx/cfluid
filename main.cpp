@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <fstream>
 
 const int Lx = 100;          // Grid size in the x-direction
 const int Ly = 50;           // Grid size in the y-direction
@@ -47,6 +48,14 @@ public:
     // Visualize the simulation results (simplified, does not provide actual visualization)
     void visualize() {
         // Print or visualize the simulation results
+        // Example: You can write the density values to a file for visualization.
+        std::ofstream outFile("density.dat");
+        for (int x = 0; x < Lx; x++) {
+            for (int y = 0; y < Ly; y++) {
+                outFile << x << " " << y << " " << density[x][y] << "\n";
+            }
+        }
+        outFile.close();
     }
 
 private:
@@ -113,6 +122,8 @@ private:
 };
 
 int main() {
+
+    std::cout<<"Running..."<<std::endl;
     FluidSimulation simulation;
 
     // Main time-stepping loop
