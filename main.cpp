@@ -3,6 +3,7 @@
 #include <cmath>
 #include <fstream>
 #include <omp.h>
+#include <SFML/Graphics.hpp>
 
 const int Lx = 100;
 const int Ly = 50;
@@ -33,18 +34,31 @@ public:
 
     void step() {
         calculateMacroscopicVariables();
+        applyBoundaryConditions();
         collisionStep();
         streamingStep();
     }
 
-    void visualize() {
-        std::ofstream outFile("density.dat");
+    void visualize(sf::RenderWindow& window) {
+        // Render the density field and boundary conditions
         for (int x = 0; x < Lx; x++) {
             for (int y = 0; y < Ly; y++) {
-                outFile << x << " " << y << " " << density[x][y] << "\n";
+                sf::RectangleShape pixel(sf::Vector2f(4.0f, 4.0f));
+                pixel.setPosition(x * 4.0f, y * 4.0f);
+
+                // Set color based on density
+                int colorValue = static_cast<int>(density[x][y] * 255);
+                sf::Color color(colorValue, colorValue, colorValue);
+
+                // Check if it's a boundary cell and set a distinct color
+                if (isBoundaryCell(x, y)) {
+                    color = sf::Color::Red; // Change to any color you like for boundary cells
+                }
+
+                pixel.setFillColor(color);
+                window.draw(pixel);
             }
         }
-        outFile.close();
     }
 
 private:
@@ -52,6 +66,10 @@ private:
     std::vector<std::vector<double>> ux;
     std::vector<std::vector<double>> uy;
     std::vector<std::vector<std::vector<double>>> f;
+
+    // Constants for the lattice Boltzmann method
+    const double w[Q] = {4.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0, 1.0 / 36.0, 1.0 / 36.0, 1.0 / 36.0, 1.0 / 36.0};
+    const int c[Q][2] = {{0, 0}, {1, 0}, {0, 1}, {-1, 0}, {0, -1}, {1, 1}, {-1, 1}, {-1, -1}, {1, -1}};
 
     void calculateMacroscopicVariables() {
         #pragma omp parallel for collapse(2)
@@ -68,6 +86,23 @@ private:
                 ux[x][y] /= density[x][y];
                 uy[x][y] /= density[x][y];
             }
+        }
+    }
+
+    void applyBoundaryConditions() {
+        // Implement boundary conditions here
+        // For simplicity, set no-slip boundary conditions at walls
+        for (int x = 0; x < Lx; x++) {
+            ux[x][0] = 0.0;
+            uy[x][0] = 0.0;
+            ux[x][Ly - 1] = 0.0;
+            uy[x][Ly - 1] = 0.0;
+        }
+        for (int y = 0; y < Ly; y++) {
+            ux[0][y] = 0.0;
+            uy[0][y] = 0.0;
+            ux[Lx - 1][y] = 0.0;
+            uy[Lx - 1][y] = 0.0;
         }
     }
 
@@ -106,19 +141,32 @@ private:
         return w[k] * rho * (1.0 + 3.0 * cu + 9.0 / 2.0 * cu * cu - 3.0 / 2.0 * usqr);
     }
 
-    double w[Q] = {4.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0, 1.0 / 36.0, 1.0 / 36.0, 1.0 / 36.0, 1.0 / 36.0};
-    int c[Q][2] = {{0, 0}, {1, 0}, {0, 1}, {-1, 0}, {0, -1}, {1, 1}, {-1, 1}, {-1, -1}, {1, -1}};
+    bool isBoundaryCell(int x, int y) {
+        // Check if (x, y) is on the boundary, e.g., if it's on the edges of the domain
+        return x == 0 || x == Lx - 1 || y == 0 || y == Ly - 1;
+    }
 };
 
 int main() {
     std::cout << "Running..." << std::endl;
     FluidSimulation simulation;
 
-    for (int t = 0; t < 1000; t++) {
-        simulation.step();
-    }
+    sf::RenderWindow window(sf::VideoMode(Lx * 4, Ly * 4), "Fluid Simulation");
+    window.setFramerateLimit(60);
 
-    simulation.visualize();
+    while (window.isOpen()) {
+        sf::Event event;
+        while (window.pollEvent(event)) {
+            if (event.type == sf::Event::Closed)
+                window.close();
+        }
+
+        simulation.step();
+
+        window.clear();
+        simulation.visualize(window);
+        window.display();
+    }
 
     return 0;
 }
