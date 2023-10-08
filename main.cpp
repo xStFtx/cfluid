@@ -2,6 +2,7 @@
 #include <vector>
 #include <cmath>
 #include <fstream>
+#include <omp.h>
 
 const int Lx = 100;          // Grid size in the x-direction
 const int Ly = 50;           // Grid size in the y-direction
@@ -67,6 +68,7 @@ private:
 
     // Helper functions for collision and streaming steps
     void calculateMacroscopicVariables() {
+        #pragma omp parallel for collapse(2)
         for (int x = 0; x < Lx; x++) {
             for (int y = 0; y < Ly; y++) {
                 density[x][y] = 0.0;
@@ -84,6 +86,7 @@ private:
     }
 
     void collisionStep() {
+        #pragma omp parallel for collapse(2)
         for (int x = 0; x < Lx; x++) {
             for (int y = 0; y < Ly; y++) {
                 double local_density = density[x][y];
@@ -99,6 +102,7 @@ private:
 
     void streamingStep() {
         std::vector<std::vector<std::vector<double>>> f_new(Lx, std::vector<std::vector<double>>(Ly, std::vector<double>(Q, 0.0)));
+        #pragma omp parallel for collapse(3)
         for (int x = 0; x < Lx; x++) {
             for (int y = 0; y < Ly; y++) {
                 for (int k = 0; k < Q; k++) {
@@ -122,8 +126,7 @@ private:
 };
 
 int main() {
-
-    std::cout<<"Running..."<<std::endl;
+    std::cout << "Running..." << std::endl;
     FluidSimulation simulation;
 
     // Main time-stepping loop
